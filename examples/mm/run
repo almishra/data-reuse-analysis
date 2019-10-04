@@ -1,0 +1,5 @@
+echo "./mm_reuse 5000"
+nvprof ./mm_reuse 5000
+echo "./mm_noreuse 5000"
+nvprof ./mm_noreuse 5000
+

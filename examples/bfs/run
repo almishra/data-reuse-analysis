@@ -1,0 +1,5 @@
+echo "nvprof ./bfs_offload 4 graph200M.txt"
+nvprof ./bfs_offload 4 graph200M.txt
+
+echo "nvprof ./bfs_offload_noreuse 4 graph200M.txt"
+nvprof ./bfs_offload_noreuse 4 graph200M.txt

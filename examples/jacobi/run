@@ -1,0 +1,4 @@
+echo "./jacobi_reuse 2000"
+nvprof ./jacobi_reuse 2000
+echo "./jacobi_noreuse 2000"
+nvprof ./jacobi_noreuse 2000
