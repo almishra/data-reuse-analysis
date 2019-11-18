@@ -12,6 +12,10 @@ int main()
         }
         cnt--;
     }
+#pragma omp target teams distribute parallel for 
+    for(int i=0; i<N; i++) {
+        a[i]++;
+    }
 
     return 0;
 }
