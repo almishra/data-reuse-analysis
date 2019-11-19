@@ -25,7 +25,7 @@ while [ "$1" != "" ]; do
             break;
             ;;
 
-         -p | --proximity)
+        -p | --proximity)
             shift;
             lib="$DIR/.build/src/proximity/libfind-near-kernel.so"
             plugin="-find-near-kernel"
@@ -36,6 +36,12 @@ while [ "$1" != "" ]; do
             shift;
             lib="$DIR/.build/src/kernel-info/libkernel-info.so"
             plugin="-kernel-info"
+            break;
+            ;;
+        -dr | --datareuse)
+            shift;
+            lib="$DIR/.build/src/data-reuse/libdata-reuse.so"
+            plugin="-data-reuse"
             break;
             ;;
         * )
@@ -50,6 +56,6 @@ then
     filename=$DIR/example/test.c
 fi
 
-echo "clang -Xclang -load -Xclang $lib -Xclang -plugin -Xclang $plugin -fopenmp -c $filename"
+echo "clang -Xclang -load -Xclang $lib -Xclang -plugin -Xclang $plugin -fopenmp -lm -c $filename"
 echo
 clang -Xclang -load -Xclang $lib -Xclang -plugin -Xclang $plugin -fopenmp -c $filename
