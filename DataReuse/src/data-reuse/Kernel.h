@@ -1,4 +1,7 @@
+#ifndef DATAREUSE_KERNEL_H
+#define DATAREUSE_KERNEL_H
 #include "clang/Frontend/FrontendPluginRegistry.h"
+#include "Loop.h"
 
 using namespace std;
 using namespace clang;
@@ -7,7 +10,7 @@ class Kernel {
     const int id;
     Stmt *st;
     bool inLoop;
-    Stmt *loop;
+    Loop *loop;
     FunctionDecl *FD;
 
     int link;
@@ -40,8 +43,8 @@ public:
     void setInLoop(bool in);
 
     /* Getter/Setter for the Stmt of the loop this kernel is inside */
-    Stmt *getLoop();
-    void setLoop(Stmt *l);
+    Loop *getLoop();
+    void setLoop(Loop *l);
 
     /* Getter/Setter for the function from which this kernel is called */
     FunctionDecl *getFunction();
@@ -53,6 +56,7 @@ public:
     /* Add/Get/Remove private variables for this kernel */
     void addPrivate(VarDecl *d);
     set<VarDecl*> getPrivate();
+    void removePrivate(VarDecl *d);
 
     /* Add/Get/Remove variables which need to be transferred to the device 
      * for this kernel */
@@ -103,3 +107,5 @@ public:
     bool operator< (const Kernel& k) const;
     bool operator> (const Kernel& k) const;
 };
+
+#endif

@@ -1,9 +1,12 @@
+#ifndef DATAREUSE_H
+#define DATAREUSE_H
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include <map>
 #include <vector>
 
 #include "Kernel.h"
+#include "Loop.h"
 
 using namespace llvm;
 
@@ -16,10 +19,11 @@ private:
     ASTContext *astContext;
     SourceManager *SM;
     bool insideLoop;
-    Stmt *loop;
+  //  Stmt *loop;
     SourceLocation loopEnd;
     FunctionDecl *currentFunction;
     Kernel *lastKernel;
+    Loop *lastLoop;
     BeforeThanCompare<SourceLocation> isBefore;
     bool firstPrivate;
 
@@ -67,6 +71,9 @@ class DataReuseAnalysisASTConsumer : public ASTConsumer {
     /* Get code generate to transfer data shared between kernel */
     string getSharedCode(map<int, vector<Kernel*>>::iterator m);
     
+    /* Get code generate to transfer data for a kernel inside a loop */
+    string getLoopCode(Loop* l);
+
     /* Get the basename of a file */
     string basename(string path);
     
@@ -110,3 +117,5 @@ protected:
     /* Function needed to parse custom command line arguments */
     bool ParseArgs(const CompilerInstance &CI, const vector<string> &args);
 };
+
+#endif

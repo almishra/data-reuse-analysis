@@ -16,12 +16,13 @@ Stmt* Kernel::getStmt() {
     return st;
 }
 
-Stmt* Kernel::getLoop() {
+Loop* Kernel::getLoop() {
     return loop;
 }
 
-void Kernel::setLoop(Stmt *l) {
+void Kernel::setLoop(Loop *l) {
     loop = l;
+    loop->addKernel(id);
 }
 
 FunctionDecl* Kernel::getFunction() {
@@ -38,6 +39,10 @@ void Kernel::addPrivate(VarDecl *d) {
 
 set<VarDecl*> Kernel::getPrivate() {
     return privList;
+}
+
+void Kernel::removePrivate(VarDecl *d) {
+    privList.erase(d);
 }
 
 void Kernel::addValueIn(ValueDecl *d) {

@@ -5,6 +5,7 @@
 
 Rewriter rewriter;
 map<int, vector<Kernel*>> kernel_map;
+map<int, vector<Loop*>> loop_map;
 
 bool DataReuseAnalysisVisitor::isWithin(SourceLocation src) {
     if(!lastKernel) return false;
@@ -48,7 +49,11 @@ ValueDecl *DataReuseAnalysisVisitor::getLeftmostNode(Stmt *st) {
         Stmt* b = NULL;
         for(Stmt *a: q->children()) {
             if(DeclRefExpr *d = dyn_cast<DeclRefExpr>(a)) {
-                if(DEBUG) llvm::errs() << "  |- Leftmost node = " << d->getDecl()->getNameAsString() << "\n"; // DEBUG
+                if(DEBUG) {
+                    llvm::errs() << "  |- Leftmost node = ";
+                    llvm::errs() << d->getDecl()->getNameAsString();
+                    llvm::errs() << "\n";
+                }
                 return d->getDecl();
             }
             b=a;
@@ -67,8 +72,9 @@ DataReuseAnalysisVisitor::DataReuseAnalysisVisitor(CompilerInstance *CI)
       isBefore(*SM) {
     rewriter.setSourceMgr(*SM, astContext->getLangOpts());
     insideLoop = false;
-    loop = NULL;
+    //loop = NULL;
     lastKernel = NULL;
+    lastLoop = NULL;
     firstPrivate = false;
     llvm::outs() << "Original File\n";
     rewriter.getEditBuffer(SM->getMainFileID()).write(llvm::outs());
@@ -128,60 +134,89 @@ bool DataReuseAnalysisVisitor::VisitStmt(Stmt *st) {
         lastKernel = k;
         if(insideLoop) {
             k->setInLoop(true);
-            k->setLoop(loop);
+            lastLoop->addKernel(k->getID());
+            k->setLoop(lastLoop);
         }
         vector<Kernel*> vec;
         vec.push_back(k);
         kernel_map[id] = vec;
     } else {
-        if(ForStmt *f = dyn_cast<ForStmt>(st)) {
+        if(dyn_cast<ForStmt>(st) || dyn_cast<WhileStmt>(st)) {
+            int loopID = lastLoop ? lastLoop->getID() + 1 : 1;
+            Loop *l = new Loop(loopID, st);
             if(!insideLoop) {
-                loopEnd = f->getEndLoc();
-                loop = (Stmt*)(f);
+                loopEnd = st->getEndLoc();
+                l->setStartLoc(st->getBeginLoc());
+                l->setEndLoc(loopEnd);
+                lastLoop = l;
+            } else {
+                l->setStartLoc(lastLoop->getStartLoc());
+                l->setEndLoc(lastLoop->getEndLoc());
             }
             insideLoop = true;
-        } else if(WhileStmt *w = dyn_cast<WhileStmt>(st)) {
-            if(!insideLoop) {
-                loopEnd = w->getEndLoc();
-                loop = (Stmt*)(w);
-            }
-            insideLoop = true;
+            vector<Loop*> vec;
+            vec.push_back(l);
+            loop_map[loopID] = vec;
         } else if(DeclRefExpr *d = dyn_cast<DeclRefExpr>(st)) {
             if(!dyn_cast<clang::FunctionDecl>(d->getDecl())) {
                 if(ValueDecl *v = d->getDecl()) {
-                    if(DEBUG) llvm::errs() << "variable - " << v->getNameAsString() << "\n"; // DEBUG
+                    if(DEBUG) {
+                        llvm::errs() << "variable - ";
+                        llvm::errs() << v->getNameAsString();
+                        llvm::errs() << "\n"; // DEBUG
+                    }
                     if(isWithin(d->getBeginLoc())) {
                         if(isNotPrivate(v)) {
-                            lastKernel->addValueIn(v);
+                            if(lastKernel->isInLoop())
+                                lastKernel->getLoop()->addValueIn(v);
+                            else
+                                lastKernel->addValueIn(v);
                         }
                     }
                 }
             }
         } else if(BinaryOperator *b = dyn_cast<BinaryOperator>(st)) {
             if(b->isAssignmentOp()) {
-                if(DEBUG) { // DEBUG
+                if(DEBUG) {
                     llvm::errs() << b->getOpcodeStr() << " ";
                     b->getOperatorLoc().dump(*SM);
                 }
                 if(isWithin(b->getBeginLoc())) {
                     ValueDecl *v = getLeftmostNode(st);
-                    if(isNotPrivate(v)) lastKernel->addValueOut(v);
+                    if(isNotPrivate(v)) {
+                        if(lastKernel->isInLoop())
+                            lastKernel->getLoop()->addValueIn(v);
+                        else
+                            lastKernel->addValueOut(v);
+                    }
                 }
             } else {
-                if(DEBUG) llvm::errs() << b->getOpcodeStr() << "\n"; // DEBUG
+                if(DEBUG) {
+                    llvm::errs() << b->getOpcodeStr();
+                    llvm::errs() << "\n";
+                }
             }
         } else if(UnaryOperator *u = dyn_cast<UnaryOperator>(st)) {
             if(u->isPostfix() || u->isPrefix()) {
-                if(DEBUG) { // DEBUG
-                    llvm::errs() << UnaryOperator::getOpcodeStr(u->getOpcode()) <<" u ";
+                if(DEBUG) {
+                    llvm::errs() << UnaryOperator::getOpcodeStr(u->getOpcode());
+                    llvm::errs() <<" u ";
                     u->getOperatorLoc().dump(*SM);
                 }
                 if(isWithin(u->getBeginLoc())) {
                     ValueDecl *v = getLeftmostNode(st);
-                    if(isNotPrivate(v)) lastKernel->addValueOut(v);
+                    if(isNotPrivate(v)) {
+                        if(lastKernel->isInLoop())
+                            lastKernel->getLoop()->addValueIn(v);
+                        else
+                            lastKernel->addValueOut(v);
+                    }
                 }
             } else {
-                if(DEBUG) llvm::errs() << UnaryOperator::getOpcodeStr(u->getOpcode()) <<" u\n"; // DEBUG
+                if(DEBUG) {
+                    llvm::errs() << UnaryOperator::getOpcodeStr(u->getOpcode());
+                    llvm::errs() <<" u\n";
+                }
             }
         }
     }
@@ -200,9 +235,47 @@ void DataReuseAnalysisASTConsumer::setInOut(Kernel *k) {
     }
 }
 
+string DataReuseAnalysisASTConsumer::getLoopCode(Loop* l) {
+    string code = "";
+    if(l->getValIn().size() > 0
+            || l->getValOut().size() > 0
+            || l->getValInOut().size() > 0) {
+        code += "#pragma omp target data ";
+
+        if(l->getValIn().size() > 0) {
+            code += "map(to:";
+            for(ValueDecl *v: l->getValIn()) {
+                code += v->getNameAsString() + ",";
+            }
+            code.pop_back();
+            code += ") ";
+        }
+        if(l->getValOut().size() > 0) {
+            code += "map(from:";
+            for(ValueDecl *v: l->getValOut()) {
+                code += v->getNameAsString() + ",";
+            }
+            code.pop_back();
+            code += ") ";
+        }
+        if(l->getValInOut().size() > 0) {
+            code += "map(tofrom:";
+            for(ValueDecl *v: l->getValInOut()) {
+                code += v->getNameAsString() + ",";
+            }
+            code.pop_back();
+            code += ") ";
+        }
+        code.pop_back();
+    }
+    return code;
+}
+
 string DataReuseAnalysisASTConsumer::getCode(Kernel* k) {
     string code = "";
-    if(k->getValIn().size() > 0 || k->getValOut().size() > 0 || k->getValInOut().size() > 0) {
+    if(k->getValIn().size() > 0
+            || k->getValOut().size() > 0
+            || k->getValInOut().size() > 0) {
         code += "#pragma omp target data ";
 
         if(k->getValIn().size() > 0) {
@@ -238,7 +311,9 @@ string DataReuseAnalysisASTConsumer::getSharedCode(map<int, vector<Kernel*>>::it
     string code = "";
     Kernel *k = m->second.at(0);
     vector<Kernel*> vec = m->second;
-    if(k->getSharedValIn().size() > 0 || k->getSharedValOut().size() > 0 || k->getSharedValInOut().size() > 0) {
+    if(k->getSharedValIn().size() > 0
+            || k->getSharedValOut().size() > 0
+            || k->getSharedValInOut().size() > 0) {
         code += "#pragma omp target data ";
         if(k->getSharedValIn().size() > 0) {
             code += "map(to:";
@@ -266,7 +341,8 @@ string DataReuseAnalysisASTConsumer::getSharedCode(map<int, vector<Kernel*>>::it
         }
         code.pop_back();
 
-        OMPExecutableDirective *Dir = dyn_cast<OMPExecutableDirective>(vec.back()->getStmt());
+        OMPExecutableDirective *Dir =
+                        dyn_cast<OMPExecutableDirective>(vec.back()->getStmt());
         CapturedStmt *cs;
         for(auto c : Dir->children()) {
             cs = dyn_cast<CapturedStmt>(c);
@@ -290,13 +366,15 @@ void DataReuseAnalysisASTConsumer::getKernelInfo() {
         int id = m->first;
         Kernel *k = m->second.at(0);
         llvm::errs() << "Kernel #" << k->getID() << "\n";
-        llvm::errs() << " Function: " << k->getFunction()->getNameAsString() << "\n";
-        llvm::errs() << " Location: ";
-        k->getStmt()->getBeginLoc().print(llvm::errs(), *(visitor->getSourceManager()));
+        llvm::errs() << " Function: " << k->getFunction()->getNameAsString();
+        llvm::errs() << "\n Location: ";
+        k->getStmt()->getBeginLoc().print(llvm::errs(),
+                                          *(visitor->getSourceManager()));
         llvm::errs() << "\n In Loop: ";
         if(k->isInLoop()) {
             llvm::errs() << "Yes ";
-            k->getLoop()->getBeginLoc().print(llvm::errs(), *(visitor->getSourceManager()));
+            k->getLoop()->getStartLoc().print(llvm::errs(),
+                                              *(visitor->getSourceManager()));
         } else {
             llvm::errs() << "No";
         }
@@ -341,11 +419,12 @@ void DataReuseAnalysisASTConsumer::getLoopInfo() {
         if(k->isInLoop()) {
             m.second.push_back(k);
             k->setLink(k->getID());
-            k->setStartLoc(k->getLoop()->getBeginLoc());
+            k->setStartLoc(k->getLoop()->getStartLoc());
             k->setEndLoc(k->getLoop()->getEndLoc());
         } else {
             k->setStartLoc(k->getStmt()->getBeginLoc());
-            OMPExecutableDirective *Dir = dyn_cast<OMPExecutableDirective>(k->getStmt());
+            OMPExecutableDirective *Dir =
+                                dyn_cast<OMPExecutableDirective>(k->getStmt());
             CapturedStmt *cs;
             for(auto c : Dir->children()) {
                 cs = dyn_cast<CapturedStmt>(c);
@@ -363,23 +442,56 @@ void DataReuseAnalysisASTConsumer::getLoopInfo() {
         llvm::errs() << "\n";
         llvm::errs() << "\n";
     }
+    llvm::errs() << "********************************\n";
+    for(auto m : loop_map) {
+        Loop *l = m.second.at(0);
+        llvm::errs() << "Loop ID: " << l->getID() << " - ";
+        for(int id : l->getKernels()) {
+            llvm::errs() << id << ",";
+        }
+        llvm::errs() << "\nStart Loc: ";
+        l->getStartLoc().print(llvm::errs(), *(visitor->getSourceManager()));
+        llvm::errs() << "\nEnd Loc: ";
+        l->getEndLoc().print(llvm::errs(), *(visitor->getSourceManager()));
+        llvm::errs() << "\n";
+        if(l->getValIn().size()) llvm::errs() << "  to:\n";
+        for(ValueDecl *v : l->getValIn()) {
+            llvm::errs() << "   |-  " << v->getNameAsString() << "\n";
+        }
+        if(l->getValOut().size()) llvm::errs() << "  from:\n";
+        for(ValueDecl *v : l->getValOut()) {
+            llvm::errs() << "   |-  " << v->getNameAsString() << "\n";
+        }
+        if(l->getValInOut().size()) llvm::errs() << "  tofrom:\n";
+        for(ValueDecl *v : l->getValInOut()) {
+            llvm::errs() << "   |-  " << v->getNameAsString() << "\n";
+        }
+    }
 }
 
 void DataReuseAnalysisASTConsumer::getProximityInfo() {
     llvm::errs() << "Proximity Check\n";
-    for(map<int, vector<Kernel*>>::iterator m1 = kernel_map.begin(); m1 != kernel_map.end(); m1++) {
+    for(map<int, vector<Kernel*>>::iterator m1 = kernel_map.begin();
+            m1 != kernel_map.end(); m1++) {
         vector<Kernel*> vec1 = m1->second;
         Kernel *k1 = vec1.at(0);
-        for(map<int, vector<Kernel*>>::iterator m2 = kernel_map.find(m1->first); m2 != kernel_map.end(); m2++) {
+        for(map<int, vector<Kernel*>>::iterator m2 = kernel_map.find(m1->first);
+                m2 != kernel_map.end(); m2++) {
             if(m1->first == m2->first) continue;
 
             vector<Kernel*> vec2 = m2->second;
             Kernel *k2 = vec2.at(0);
-            //llvm::errs() << k1->getFunction()->getNameInfo().getAsString() << " " << k2->getFunction()->getNameInfo().getAsString() << "\n";
+            if(DEBUG) {
+                llvm::errs() << k1->getFunction()->getNameInfo().getAsString();
+                llvm::errs() << " ";
+                llvm::errs() << k2->getFunction()->getNameInfo().getAsString();
+                llvm::errs() << "\n";
+            }
             if(k1->getFunction() == k2->getFunction()) {
                 //llvm::errs() << k1->isLinkedTo() << "\n";
                 if(k1->isLinkedTo()) {
-                    map<int, vector<Kernel*>>::iterator kLink = kernel_map.find(k1->isLinkedTo());
+                    map<int, vector<Kernel*>>::iterator kLink =
+                                              kernel_map.find(k1->isLinkedTo());
                     kLink->second.push_back(k2);
                     k2->setLink(kLink->first);
                 } else {
@@ -455,18 +567,37 @@ void DataReuseAnalysisASTConsumer::codeTransformation() {
         Kernel *k = m->second.at(0);
         string code = getCode(k);
         string shared_code = getSharedCode(m);
+
+        SourceLocation loc;
         //llvm::errs() << "Shared: " << shared_code << "\n";
         //llvm::errs() << "Code: " << code << "\n";
-        if(code != "")
-            rewriter.InsertTextBefore(k->getStmt()->getBeginLoc().getLocWithOffset(-8),
-                    code+"\n");
+
+        if(code != "") {
+            loc = k->getStmt()->getBeginLoc().getLocWithOffset(-8);
+            rewriter.InsertTextBefore(loc, code+"\n");
+        }
         if(shared_code != "") {
-            rewriter.InsertTextBefore(k->getStartLoc().getLocWithOffset(-8),
-                    shared_code+"\n{\n");
-            rewriter.InsertTextAfter(k->getEndLoc().getLocWithOffset(2), "\n}\n");
+            loc = k->getStartLoc().getLocWithOffset(-8);
+            rewriter.InsertTextBefore(loc, shared_code+"\n{\n");
+            loc = k->getEndLoc().getLocWithOffset(2);
+            rewriter.InsertTextAfter(loc, "\n}\n");
+        }
+    }
+
+    for(map<int, vector<Loop*>>::iterator m = loop_map.begin();
+            m != loop_map.end(); m++) {
+        Loop *l = m->second.at(0);
+        string code = "";
+        if(l->getKernels().size() > 0) {
+            code = getLoopCode(l);
         }
 
+        if(code != "") {
+            SourceLocation loc = l->getStartLoc();//.getLocWithOffset(-1);
+            rewriter.InsertTextBefore(loc, code+"\n");
+        }
     }
+
 
     FileID id = rewriter.getSourceMgr().getMainFileID();
     /*llvm::outs() << "******************************\n";
