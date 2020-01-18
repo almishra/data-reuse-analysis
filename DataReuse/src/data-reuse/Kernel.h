@@ -3,32 +3,32 @@
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "Loop.h"
 
-using namespace std;
-using namespace clang;
-
 class Kernel {
     const int id;
-    Stmt *st;
+    clang::Stmt *st;
     bool inLoop;
     Loop *loop;
-    FunctionDecl *FD;
+    clang::FunctionDecl *FD;
 
     int link;
 
-    set<VarDecl*> privList;
-    set<ValueDecl*> valIn;
-    set<ValueDecl*> valOut;
-    set<ValueDecl*> valInOut;
+    std::set<clang::VarDecl*> privList;
+    std::set<clang::ValueDecl*> valIn;
+    std::set<clang::ValueDecl*> valOut;
+    std::set<clang::ValueDecl*> valInOut;
 
-    set<ValueDecl*> sharedValIn;
-    set<ValueDecl*> sharedValOut;
-    set<ValueDecl*> sharedValInOut;
+    std::set<clang::ValueDecl*> sharedValIn;
+    std::set<clang::ValueDecl*> sharedValOut;
+    std::set<clang::ValueDecl*> sharedValInOut;
 
-    SourceLocation startLoc;
-    SourceLocation endLoc;
+    clang::SourceLocation startLoc;
+    clang::SourceLocation endLoc;
 
 public:
-    Kernel(int ID, Stmt *stmt, FunctionDecl *F) : id(ID), st(stmt), FD(F) {
+    Kernel(int ID, clang::Stmt *stmt, clang::FunctionDecl *F) 
+        : id(ID), 
+          st(stmt), 
+          FD(F) {
         inLoop = false;
         loop = NULL;
         link = 0;
@@ -47,58 +47,58 @@ public:
     void setLoop(Loop *l);
 
     /* Getter/Setter for the function from which this kernel is called */
-    FunctionDecl *getFunction();
-    void setFuction(FunctionDecl *F);
+    clang::FunctionDecl *getFunction();
+    void setFuction(clang::FunctionDecl *F);
 
     /* Get the Stmt of the kernel */
-    Stmt *getStmt();
+    clang::Stmt *getStmt();
 
     /* Add/Get/Remove private variables for this kernel */
-    void addPrivate(VarDecl *d);
-    set<VarDecl*> getPrivate();
-    void removePrivate(VarDecl *d);
+    void addPrivate(clang::VarDecl *d);
+    std::set<clang::VarDecl*> getPrivate();
+    void removePrivate(clang::VarDecl *d);
 
     /* Add/Get/Remove variables which need to be transferred to the device 
      * for this kernel */
-    void addValueIn(ValueDecl *d);
-    set<ValueDecl*> getValIn();
-    void removeValueIn(ValueDecl *d);
+    void addValueIn(clang::ValueDecl *d);
+    std::set<clang::ValueDecl*> getValIn();
+    void removeValueIn(clang::ValueDecl *d);
 
     /* Add/Get/Remove variables which need to be transferred from the device 
      * for this kernel */
-    void addValueOut(ValueDecl *d);
-    set<ValueDecl*> getValOut();
-    void removeValueOut(ValueDecl *d);
+    void addValueOut(clang::ValueDecl *d);
+    std::set<clang::ValueDecl*> getValOut();
+    void removeValueOut(clang::ValueDecl *d);
 
     /* Add/Get/Remove variables which need to be transferred both to and from 
      * the device for this kernel */
-    void addValueInOut(ValueDecl *d);
-    set<ValueDecl*> getValInOut();
-    void removeValueInOut(ValueDecl *d);
+    void addValueInOut(clang::ValueDecl *d);
+    std::set<clang::ValueDecl*> getValInOut();
+    void removeValueInOut(clang::ValueDecl *d);
 
     /* Add/Get/Remove variables which need to be transferred to the device 
      * and is shared between this kernel and some other kernel */
-    void addSharedValueIn(ValueDecl *d);
-    set<ValueDecl*> getSharedValIn();
-    void removeSharedValueIn(ValueDecl *d);
+    void addSharedValueIn(clang::ValueDecl *d);
+    std::set<clang::ValueDecl*> getSharedValIn();
+    void removeSharedValueIn(clang::ValueDecl *d);
 
     /* Add/Get/Remove variables which need to be transferred from the device 
      * and is shared between this kernel and some other kernel */
-    void addSharedValueOut(ValueDecl *d);
-    void removeSharedValueOut(ValueDecl *d);
-    set<ValueDecl*> getSharedValOut();
+    void addSharedValueOut(clang::ValueDecl *d);
+    void removeSharedValueOut(clang::ValueDecl *d);
+    std::set<clang::ValueDecl*> getSharedValOut();
  
     /* Add/Get/Remove variables which need to be transferred both to and from 
      * the device and is shared between this kernel and some other kernel */
-    void addSharedValueInOut(ValueDecl *d);
-    void removeSharedValueInOut(ValueDecl *d);
-    set<ValueDecl*> getSharedValInOut();
+    void addSharedValueInOut(clang::ValueDecl *d);
+    void removeSharedValueInOut(clang::ValueDecl *d);
+    std::set<clang::ValueDecl*> getSharedValInOut();
 
     /* Getter/Setter for start and end source location of the kernel */
-    void setStartLoc(SourceLocation start);
-    SourceLocation getStartLoc();
-    void setEndLoc(SourceLocation end);
-    SourceLocation getEndLoc();
+    void setStartLoc(clang::SourceLocation start);
+    clang::SourceLocation getStartLoc();
+    void setEndLoc(clang::SourceLocation end);
+    clang::SourceLocation getEndLoc();
 
     void setLink(int id);
     int isLinkedTo();

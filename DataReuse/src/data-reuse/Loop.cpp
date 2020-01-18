@@ -1,5 +1,8 @@
 #include "Loop.h"
 
+using namespace std;
+using namespace clang;
+
 int Loop::getID() const {
     return id;
 }

@@ -1,5 +1,8 @@
 #include "Kernel.h"
 
+using namespace std;
+using namespace clang;
+
 int Kernel::getID() const {
     return id;
 }

@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 2.8)
 add_library(data-reuse MODULE
     Loop.cpp
     Kernel.cpp
+    DRA_Visitor.cpp
+    DRA_ASTConsumer.cpp
     DataReuse.cpp
 )
 
