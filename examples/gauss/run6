@@ -1,0 +1,8 @@
+>result_offload6
+>result_offload_noreuse6
+
+echo "nvprof ./gs_offload6 4096"
+nvprof ./gs_offload6 4096 >>result_offload6 2>>result_offload6
+
+echo "nvprof ./gs_offload_noreuse6 4096"
+nvprof ./gs_offload_noreuse6 4096 >>result_offload_noreuse6 2>>result_offload_noreuse6
