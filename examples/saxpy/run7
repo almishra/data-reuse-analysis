@@ -1,0 +1,8 @@
+>result_offload7
+>result_offload_noreuse7
+
+echo "nvprof ./saxpy7"
+nvprof ./saxpy7 >>result_offload7 2>>result_offload7
+
+echo "nvprof ./saxpy_noreuse"
+nvprof ./saxpy_noreuse7 >>result_offload_noreuse7 2>>result_offload_noreuse7
