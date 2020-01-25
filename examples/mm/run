@@ -1,5 +1,8 @@
-echo "./mm_reuse 5000"
-nvprof ./mm_reuse 5000
-echo "./mm_noreuse 5000"
-nvprof ./mm_noreuse 5000
+>result_offload
+>result_offload_noreuse
 
+echo "./mm_reuse 5000"
+nvprof ./mm_reuse 5000 >>result_offload 2>>result_offload
+
+echo "./mm_noreuse 5000"
+nvprof ./mm_noreuse 5000 >>result_offload_noreuse 2>>result_offload_noreuse
