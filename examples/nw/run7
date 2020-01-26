@@ -1,0 +1,4 @@
+echo "./needle_offload7 30000 10 2"
+nvprof ./needle_offload7 30000 10 2 2>> result_offload7 > result_offload7
+echo "./needle_offload_noreuse7 30000 10 2" 
+nvprof ./needle_offload_noreuse7 30000 10 2 2>> result_offload_noreuse7 > result_offload_noreuse7
