@@ -1,0 +1,5 @@
+#./hotspot_offload 1024 1024 2 4 ../../data/hotspot/temp_1024 ../../data/hotspot/power_1024 output.out
+echo "nvprof ./hotspot_reuse7 16384 16384 4 4 temp_16384 power_16384 output7.out"
+nvprof ./hotspot_reuse7 16384 16384 4 4 temp_16384 power_16384 output7.out >> result_reuse7 2>> result_reuse7
+echo "nvprof ./hotspot_noreuse7 16384 16384 4 4 temp_16384 power_16384 output_noreuse7.out"
+nvprof ./hotspot_noreuse7 16384 16384 4 4 temp_16384 power_16384 output_noreuse7.out >> result_noreuse7 2>> result_noreuse7
