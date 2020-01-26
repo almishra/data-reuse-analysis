@@ -61,8 +61,10 @@ int main(int argc, char**argv) {
             #pragma omp parallel for reduction(max:err)
             for( j = 1; j < m - 1; j++) {
                 Anew[i][j] = 0.25 * (A[i][j+1] + A[i][j-1] + A[i-1][j] + A[i+1][j]);
-                if(err < fabs(Anew[i][j] - A[i][j]))
-                    err = fabs(Anew[i][j] - A[i][j]);
+                double val = Anew[i][j] - A[i][j]; 
+                if(val < 0) val *= -1;
+                if(err < val)
+                    err = val;
             }
         }
 

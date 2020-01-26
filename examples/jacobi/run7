@@ -1,0 +1,8 @@
+>result_offload7
+>result_offload_noreuse7
+
+echo "./jacobi_reuse7 2000"
+nvprof ./jacobi_reuse7 2000 >>result_offload7 2>>result_offload7
+
+echo "./jacobi_noreuse7 2000"
+nvprof ./jacobi_noreuse7 2000 >>result_offload_noreuse7 2>>result_offload_noreuse7
