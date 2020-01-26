@@ -1,0 +1,6 @@
+>result_offload7
+>result_offload_noreuse7
+echo "nvprof ./offload7 -x 128 -y 128 -z 10 -np 1000000"
+nvprof ./offload7 -x 128 -y 128 -z 10 -np 1000000 2>> result_offload7 >> result_offload7
+echo "nvprof ./offload_noreuse7 -x 128 -y 128 -z 10 -np 1000000"
+nvprof ./offload_noreuse7 -x 128 -y 128 -z 10 -np 1000000 2>> result_offload_noreuse7 >> result_offload_noreuse7
