@@ -1,0 +1,6 @@
+>result_offload
+>result_offload_noreuse
+echo "nvprof ./nn_offload filelist 10 30 90"
+nvprof ./nn_offload filelist 10 30 90 >>result_offload 2>>result_offload
+echo "nvprof ./nn_offload_noreuse filelist 10 30 90"
+nvprof ./nn_offload_noreuse filelist 10 30 90 >>result_offload_noreuse 2>>result_offload_noreuse 
