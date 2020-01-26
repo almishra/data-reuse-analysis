@@ -1,4 +1,4 @@
 echo "./lud_omp_offload -s 20000"
-nvprof ./lud_omp_offload -s 20000
+nvprof ./lud_omp_offload -s 20000 2>>result_reuse >>result_reuse
 echo "./lud_omp_offload_noreuse -s 20000"
-nvprof ./lud_omp_offload_noreuse -s 20000
+nvprof ./lud_omp_offload_noreuse -s 20000 2>>result_noreuse >>result_noreuse
